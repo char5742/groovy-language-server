@@ -48,6 +48,9 @@ import org.codehaus.groovy.control.Phases;
 import org.codehaus.groovy.control.messages.Message;
 import org.codehaus.groovy.control.messages.SyntaxErrorMessage;
 import org.codehaus.groovy.syntax.SyntaxException;
+import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionParams;
+import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
@@ -96,6 +99,7 @@ import io.github.classgraph.ScanResult;
 import net.prominic.groovyls.compiler.ast.ASTNodeVisitor;
 import net.prominic.groovyls.compiler.control.GroovyLSCompilationUnit;
 import net.prominic.groovyls.config.ICompilationUnitFactory;
+import net.prominic.groovyls.providers.CodeActionProvider;
 import net.prominic.groovyls.providers.CompletionProvider;
 import net.prominic.groovyls.providers.DefinitionProvider;
 import net.prominic.groovyls.providers.DocumentFormattingProvider;
@@ -124,6 +128,7 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 	private ScanResult classGraphScanResult = null;
 	private GroovyClassLoader classLoader = null;
 	private URI previousContext = null;
+	private CodeActionProvider codeActionProvider = null;
 
 	public GroovyServices(ICompilationUnitFactory factory) {
 		compilationUnitFactory = factory;
@@ -378,6 +383,16 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 	}
 
 	@Override
+	public CompletableFuture<List<Either<Command, CodeAction>>> codeAction(CodeActionParams params) {
+		if (codeActionProvider == null || astVisitor == null) {
+			URI uri = URI.create(params.getTextDocument().getUri());
+			recompileIfContextChanged(uri);
+			codeActionProvider = new CodeActionProvider(astVisitor, fileContentsTracker);
+		}
+		return codeActionProvider.provideCodeActions(params);
+	}
+
+	@Override
 	public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
 		URI uri = URI.create(params.getTextDocument().getUri());
 		recompileIfContextChanged(uri);
@@ -403,6 +418,8 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 		}
 		astVisitor = new ASTNodeVisitor();
 		astVisitor.visitCompilationUnit(compilationUnit);
+		// Reset provider when AST changes
+		codeActionProvider = null;
 	}
 
 	private void visitAST(Set<URI> uris) {

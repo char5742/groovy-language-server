@@ -20,6 +20,8 @@
 package net.prominic.groovyls.compiler.util;
 
 import groovy.lang.groovydoc.Groovydoc;
+import java.util.ArrayList;
+import java.util.List;
 
 public class GroovydocUtils {
 	public static String groovydocToMarkdownDescription(Groovydoc groovydoc) {
@@ -28,7 +30,13 @@ public class GroovydocUtils {
 		}
 		String content = groovydoc.getContent();
 		String[] lines = content.split("\n");
-		StringBuilder markdownBuilder = new StringBuilder();
+		StringBuilder descriptionBuilder = new StringBuilder();
+		List<String> paramTags = new ArrayList<>();
+		String returnTag = null;
+		List<String> throwsTags = new ArrayList<>();
+		String currentTag = null;
+		StringBuilder currentTagContent = new StringBuilder();
+		
 		int n = lines.length;
 		if (n == 1) {
 			// strip end of groovydoc comment
@@ -40,20 +48,131 @@ public class GroovydocUtils {
 		// strip start of groovydoc coment
 		String line = lines[0];
 		int lengthToRemove = Math.min(line.length(), 3);
-		line = line.substring(lengthToRemove);
-		appendLine(markdownBuilder, line);
-		for (int i = 1; i < n - 1; i++) {
+		line = line.substring(lengthToRemove).trim();
+		if (line.length() > 0 && !line.startsWith("@")) {
+			appendLine(descriptionBuilder, line);
+		}
+		
+		for (int i = 1; i < n; i++) {
 			line = lines[i];
 			int star = line.indexOf("*");
-			int at = line.indexOf("@");
-			if (at == -1) {
-				if (star > -1) // line starts with a *
-				{
-					appendLine(markdownBuilder, line.substring(star + 1));
+			if (star > -1) {
+				line = line.substring(star + 1).trim();
+			}
+			
+			// Check if line contains */ at the end (last line of comment)
+			int endComment = line.indexOf("*/");
+			if (endComment != -1) {
+				line = line.substring(0, endComment).trim();
+				if (line.length() == 0) {
+					continue;
+				}
+			}
+			
+			if (line.startsWith("@")) {
+				// Save previous tag if exists
+				if (currentTag != null) {
+					saveTag(currentTag, currentTagContent.toString().trim(), paramTags, throwsTags);
+					if (currentTag.equals("@return") || currentTag.equals("@returns")) {
+						returnTag = currentTagContent.toString().trim();
+					}
+				}
+				
+				// Parse new tag
+				int spaceIndex = line.indexOf(" ");
+				if (spaceIndex > 0) {
+					currentTag = line.substring(0, spaceIndex);
+					currentTagContent = new StringBuilder(line.substring(spaceIndex + 1).trim());
+				} else {
+					currentTag = line;
+					currentTagContent = new StringBuilder();
+				}
+			} else if (currentTag != null) {
+				// Continue building current tag content
+				if (currentTagContent.length() > 0) {
+					currentTagContent.append(" ");
+				}
+				currentTagContent.append(line);
+			} else {
+				// Regular description line
+				appendLine(descriptionBuilder, line);
+			}
+		}
+		
+		// Save last tag if exists
+		if (currentTag != null) {
+			saveTag(currentTag, currentTagContent.toString().trim(), paramTags, throwsTags);
+			if (currentTag.equals("@return") || currentTag.equals("@returns")) {
+				returnTag = currentTagContent.toString().trim();
+			}
+		}
+		
+		// Build final markdown
+		StringBuilder markdownBuilder = new StringBuilder();
+		String description = descriptionBuilder.toString().trim();
+		if (description.length() > 0) {
+			markdownBuilder.append(description);
+		}
+		
+		// Add parameters section
+		if (!paramTags.isEmpty()) {
+			if (markdownBuilder.length() > 0) {
+				markdownBuilder.append("\n\n");
+			}
+			markdownBuilder.append("**Parameters:**\n");
+			for (String param : paramTags) {
+				markdownBuilder.append("- ").append(param).append("\n");
+			}
+		}
+		
+		// Add returns section
+		if (returnTag != null && returnTag.length() > 0) {
+			if (markdownBuilder.length() > 0) {
+				markdownBuilder.append("\n\n");
+			}
+			markdownBuilder.append("**Returns:** ").append(reformatLine(returnTag));
+		}
+		
+		// Add throws section
+		if (!throwsTags.isEmpty()) {
+			if (markdownBuilder.length() > 0) {
+				markdownBuilder.append("\n\n");
+			}
+			markdownBuilder.append("**Throws:**\n");
+			for (String throwsTag : throwsTags) {
+				markdownBuilder.append("- ").append(throwsTag).append("\n");
+			}
+		}
+		
+		return markdownBuilder.toString();
+	}
+	
+	private static void saveTag(String tag, String content, List<String> paramTags, List<String> throwsTags) {
+		if (tag.equals("@param")) {
+			if (content.length() > 0) {
+				// Format: paramName description
+				int spaceIndex = content.indexOf(" ");
+				if (spaceIndex > 0) {
+					String paramName = content.substring(0, spaceIndex);
+					String paramDesc = content.substring(spaceIndex + 1).trim();
+					paramTags.add("`" + paramName + "` - " + paramDesc);
+				} else {
+					paramTags.add("`" + content + "`");
+				}
+			}
+		} else if (tag.equals("@throws") || tag.equals("@exception")) {
+			if (content.length() > 0) {
+				// Format: ExceptionType description
+				int spaceIndex = content.indexOf(" ");
+				if (spaceIndex > 0) {
+					String exceptionType = content.substring(0, spaceIndex);
+					String exceptionDesc = content.substring(spaceIndex + 1).trim();
+					throwsTags.add("`" + exceptionType + "` - " + exceptionDesc);
+				} else {
+					throwsTags.add("`" + content + "`");
 				}
 			}
 		}
-		return markdownBuilder.toString().trim();
 	}
 
 	private static void appendLine(StringBuilder markdownBuilder, String line) {
