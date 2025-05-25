@@ -12,6 +12,9 @@
 - Language Server Protocolを使用したインテリジェントなコード補完
 - エラー診断とコード解析
 - Java環境の自動検出
+- **デバッグサポート**: Groovyアプリケーションとスクリプトのデバッグ機能
+- Gradle/Mavenタスクの実行サポート
+- ドキュメントフォーマット機能
 
 ## インストール方法
 
@@ -47,6 +50,67 @@ cd groovy-language-server/vscode-extension
 
 - `groovy.java.home`: JDKのパスを手動で指定（自動検出に失敗した場合）
 - `groovy.classpath`: クラスパスに追加するエントリの配列
+
+## デバッグ機能
+
+この拡張機能はGroovyアプリケーションとスクリプトのデバッグをサポートしています。
+
+### 前提条件
+
+- Java Debugger拡張機能 (`vscjava.vscode-java-debug`) がインストールされている必要があります
+- GROOVY_HOMEが設定されているか、Groovyライブラリがクラスパスに含まれている必要があります
+
+### デバッグ設定の例
+
+`.vscode/launch.json`に以下のような設定を追加します：
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // Groovyアプリケーションの実行
+            "type": "groovy",
+            "request": "launch",
+            "name": "Launch Groovy Application",
+            "mainClass": "com.example.Main",
+            "projectName": "${workspaceFolderBasename}",
+            "args": "",
+            "vmArgs": "-Xmx512m"
+        },
+        {
+            // Groovyスクリプトの実行
+            "type": "groovy",
+            "request": "launch",
+            "name": "Launch Current Groovy Script",
+            "script": "${file}"
+        },
+        {
+            // 実行中のGroovyアプリケーションへのアタッチ
+            "type": "groovy",
+            "request": "attach",
+            "name": "Attach to Groovy Application",
+            "hostName": "localhost",
+            "port": 5005
+        }
+    ]
+}
+```
+
+### デバッグの使い方
+
+1. `.groovy`ファイルにブレークポイントを設定
+2. デバッグビューを開く（Ctrl+Shift+D）
+3. 上記の設定から適切なデバッグ構成を選択
+4. デバッグの開始（F5）
+
+### リモートデバッグ
+
+リモートデバッグを有効にするには、Groovyアプリケーションを以下のJVMオプションで起動します：
+
+```sh
+java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 -jar myapp.jar
+```
 
 ## 開発
 

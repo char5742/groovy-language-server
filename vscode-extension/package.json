@@ -44,6 +44,9 @@
   "activationEvents": [
     "onLanguage:groovy"
   ],
+  "extensionDependencies": [
+    "vscjava.vscode-java-debug"
+  ],
   "contributes": {
     "languages": [
       {
@@ -196,6 +199,129 @@
         }
       ]
     },
+    "debuggers": [
+      {
+        "type": "groovy",
+        "label": "Groovy",
+        "configurationAttributes": {
+          "launch": {
+            "required": ["mainClass"],
+            "properties": {
+              "mainClass": {
+                "type": "string",
+                "description": "Main class to launch (e.g., com.example.Main)",
+                "default": ""
+              },
+              "projectName": {
+                "type": "string",
+                "description": "The preferred project in which the main class is searched for",
+                "default": ""
+              },
+              "args": {
+                "type": "string",
+                "description": "Command line arguments separated by space",
+                "default": ""
+              },
+              "vmArgs": {
+                "type": "string",
+                "description": "JVM arguments separated by space",
+                "default": ""
+              },
+              "classpath": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The classpath for launching the Groovy program",
+                "default": []
+              },
+              "encoding": {
+                "type": "string",
+                "description": "The file.encoding setting for the Groovy program",
+                "default": "UTF-8"
+              },
+              "sourcePaths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The extra source directories of the program",
+                "default": []
+              },
+              "script": {
+                "type": "string",
+                "description": "Path to Groovy script file to run",
+                "default": ""
+              }
+            }
+          },
+          "attach": {
+            "required": ["hostName", "port"],
+            "properties": {
+              "hostName": {
+                "type": "string",
+                "default": "localhost",
+                "description": "The host name or IP address of the debuggee JVM"
+              },
+              "port": {
+                "type": "number",
+                "default": 5005,
+                "description": "The debug port of the debuggee JVM"
+              },
+              "projectName": {
+                "type": "string",
+                "description": "The preferred project to use when searching for classes",
+                "default": ""
+              },
+              "sourcePaths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The extra source directories to find Groovy source files",
+                "default": []
+              }
+            }
+          }
+        },
+        "configurationSnippets": [
+          {
+            "label": "Groovy: Launch Application",
+            "description": "A new configuration for launching a Groovy application",
+            "body": {
+              "type": "groovy",
+              "request": "launch",
+              "name": "Launch Groovy Application",
+              "mainClass": "${1:com.example.Main}",
+              "projectName": "${2:${workspaceFolderBasename}}",
+              "args": "",
+              "vmArgs": ""
+            }
+          },
+          {
+            "label": "Groovy: Launch Script",
+            "description": "A new configuration for launching a Groovy script",
+            "body": {
+              "type": "groovy",
+              "request": "launch",
+              "name": "Launch Groovy Script",
+              "script": "^\"${1:${file}}\""
+            }
+          },
+          {
+            "label": "Groovy: Attach to Remote",
+            "description": "A new configuration for attaching to a running Groovy application",
+            "body": {
+              "type": "groovy",
+              "request": "attach",
+              "name": "Attach to Groovy Application",
+              "hostName": "localhost",
+              "port": 5005
+            }
+          }
+        ]
+      }
+    ],
     "menus": {
       "view/title": [
         {
