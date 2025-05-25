@@ -60,6 +60,8 @@ export abstract class TaskProvider {
 }
 
 export class GradleTaskProvider extends TaskProvider {
+    private static readonly TASK_TIMEOUT_MS = 30000; // 30 seconds
+    
     async getTasks(): Promise<string[]> {
         return new Promise((resolve, reject) => {
             const gradleExecutable = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
@@ -67,20 +69,54 @@ export class GradleTaskProvider extends TaskProvider {
             
             // Use gradlew if exists, otherwise use system gradle
             const command = fs.existsSync(gradlewPath) ? gradlewPath : 'gradle';
+            const args = ['tasks', '--all'];
             
-            const gradleProcess = spawn(command, ['tasks', '--all'], {
+            // Security: use shell: false and absolute paths
+            const options = {
                 cwd: this.buildTool.projectRoot,
-                shell: true
-            });
+                shell: false,
+                windowsHide: true
+            };
+            
+            // For Windows, we need to handle .bat files differently
+            let spawnCommand = command;
+            let spawnArgs = args;
+            if (process.platform === 'win32' && command.endsWith('.bat')) {
+                spawnCommand = 'cmd.exe';
+                spawnArgs = ['/c', command, ...args];
+            }
+            
+            const gradleProcess = spawn(spawnCommand, spawnArgs, options);
             
             let output = '';
+            let errorOutput = '';
+            let timedOut = false;
+            
+            // Set timeout
+            const timeoutId = setTimeout(() => {
+                timedOut = true;
+                gradleProcess.kill('SIGTERM');
+                reject(new Error(`Gradle task discovery timed out after ${GradleTaskProvider.TASK_TIMEOUT_MS}ms`));
+            }, GradleTaskProvider.TASK_TIMEOUT_MS);
+            
             gradleProcess.stdout.on('data', (data) => {
                 output += data.toString();
             });
             
+            gradleProcess.stderr.on('data', (data) => {
+                errorOutput += data.toString();
+            });
+            
             gradleProcess.on('close', (code) => {
+                clearTimeout(timeoutId);
+                
+                if (timedOut) {
+                    return;
+                }
+                
                 if (code !== 0) {
-                    reject(new Error(`Gradle process exited with code ${code}`));
+                    const errorMessage = errorOutput || `Gradle process exited with code ${code}`;
+                    reject(new Error(`Failed to get Gradle tasks: ${errorMessage}`));
                     return;
                 }
                 
@@ -88,8 +124,20 @@ export class GradleTaskProvider extends TaskProvider {
                 resolve(tasks);
             });
             
-            gradleProcess.on('error', (error) => {
-                reject(error);
+            gradleProcess.on('error', (error: any) => {
+                clearTimeout(timeoutId);
+                
+                if (timedOut) {
+                    return;
+                }
+                
+                if (error.code === 'ENOENT') {
+                    reject(new Error(`Gradle executable not found: ${command}. Please ensure Gradle is installed and available in PATH.`));
+                } else if (error.code === 'EACCES') {
+                    reject(new Error(`Permission denied to execute Gradle: ${command}`));
+                } else {
+                    reject(new Error(`Failed to execute Gradle: ${error.message}`));
+                }
             });
         });
     }
@@ -100,19 +148,31 @@ export class GradleTaskProvider extends TaskProvider {
         let inTaskSection = false;
         
         for (const line of lines) {
-            if (line.includes('tasks')) {
+            // Look for various task section headers
+            if (line.match(/^-+\s+Tasks\s+runnable\s+from\s+/) || 
+                line.includes('All tasks runnable from') ||
+                line.includes('Other tasks')) {
                 inTaskSection = true;
                 continue;
             }
             
-            if (inTaskSection && line.trim() === '') {
+            // End of task section
+            if (inTaskSection && (line.trim() === '' || line.startsWith('BUILD SUCCESSFUL'))) {
                 break;
             }
             
             if (inTaskSection) {
-                const match = line.match(/^(\w+)\s+-/);
+                // Match various task name patterns:
+                // - Simple tasks: "build - Description"
+                // - Subproject tasks: ":subproject:task - Description"
+                // - Tasks with hyphens: "my-task - Description"
+                const match = line.match(/^([\w:.-]+)\s+-\s+/);
                 if (match) {
-                    tasks.push(match[1]);
+                    const taskName = match[1].trim();
+                    // Filter out section headers that might match the pattern
+                    if (!taskName.endsWith(':') && taskName !== 'task') {
+                        tasks.push(taskName);
+                    }
                 }
             }
         }
@@ -130,35 +190,82 @@ export class GradleTaskProvider extends TaskProvider {
             task: taskName
         };
         
+        // Use quoted execution for security
+        const quotedCommand = process.platform === 'win32' ? `"${command}"` : command;
+        
         const task = new vscode.Task(
             taskDefinition,
             this.workspaceFolder,
             taskName,
             'gradle',
-            new vscode.ShellExecution(command, [taskName], {
+            new vscode.ShellExecution(quotedCommand, [taskName], {
                 cwd: this.buildTool.projectRoot
             }),
             '$gradle'
         );
         
         task.group = vscode.TaskGroup.Build;
+        task.presentationOptions = {
+            echo: true,
+            reveal: vscode.TaskRevealKind.Always,
+            focus: false,
+            panel: vscode.TaskPanelKind.Shared,
+            showReuseMessage: true,
+            clear: false
+        };
         return task;
     }
 }
 
 export class MavenTaskProvider extends TaskProvider {
+    private static readonly TASK_TIMEOUT_MS = 30000; // 30 seconds
+    
     async getTasks(): Promise<string[]> {
         return new Promise((resolve, reject) => {
             const mvnwPath = path.join(this.buildTool.projectRoot, process.platform === 'win32' ? 'mvnw.cmd' : './mvnw');
             const command = fs.existsSync(mvnwPath) ? mvnwPath : 'mvn';
+            const args = ['help:describe', '-Dcmd=compile'];
             
-            const mavenProcess = spawn(command, ['help:describe', '-Dcmd=compile'], {
+            // Security: use shell: false and absolute paths
+            const options = {
                 cwd: this.buildTool.projectRoot,
-                shell: true
+                shell: false,
+                windowsHide: true
+            };
+            
+            // For Windows, we need to handle .cmd files differently
+            let spawnCommand = command;
+            let spawnArgs = args;
+            if (process.platform === 'win32' && command.endsWith('.cmd')) {
+                spawnCommand = 'cmd.exe';
+                spawnArgs = ['/c', command, ...args];
+            }
+            
+            const mavenProcess = spawn(spawnCommand, spawnArgs, options);
+            
+            let errorOutput = '';
+            let timedOut = false;
+            
+            // Set timeout
+            const timeoutId = setTimeout(() => {
+                timedOut = true;
+                mavenProcess.kill('SIGTERM');
+                reject(new Error(`Maven task discovery timed out after ${MavenTaskProvider.TASK_TIMEOUT_MS}ms`));
+            }, MavenTaskProvider.TASK_TIMEOUT_MS);
+            
+            mavenProcess.stderr.on('data', (data) => {
+                errorOutput += data.toString();
             });
             
-            mavenProcess.on('close', () => {
-                // Return common Maven goals
+            mavenProcess.on('close', (code) => {
+                clearTimeout(timeoutId);
+                
+                if (timedOut) {
+                    return;
+                }
+                
+                // Return common Maven goals regardless of the help command result
+                // as Maven help:describe might fail in some configurations
                 const commonGoals = [
                     'clean',
                     'validate',
@@ -177,8 +284,37 @@ export class MavenTaskProvider extends TaskProvider {
                 resolve(commonGoals);
             });
             
-            mavenProcess.on('error', (error) => {
-                reject(error);
+            mavenProcess.on('error', (error: any) => {
+                clearTimeout(timeoutId);
+                
+                if (timedOut) {
+                    return;
+                }
+                
+                if (error.code === 'ENOENT') {
+                    // Maven not found, but we can still provide common goals
+                    console.warn(`Maven executable not found: ${command}. Providing default goals.`);
+                    const commonGoals = [
+                        'clean',
+                        'validate',
+                        'compile',
+                        'test',
+                        'package',
+                        'verify',
+                        'install',
+                        'deploy',
+                        'site',
+                        'clean compile',
+                        'clean test',
+                        'clean package',
+                        'clean install'
+                    ];
+                    resolve(commonGoals);
+                } else if (error.code === 'EACCES') {
+                    reject(new Error(`Permission denied to execute Maven: ${command}`));
+                } else {
+                    reject(new Error(`Failed to execute Maven: ${error.message}`));
+                }
             });
         });
     }
@@ -192,18 +328,29 @@ export class MavenTaskProvider extends TaskProvider {
             goal: goalName
         };
         
+        // Use quoted execution for security
+        const quotedCommand = process.platform === 'win32' ? `"${command}"` : command;
+        
         const task = new vscode.Task(
             taskDefinition,
             this.workspaceFolder,
             goalName,
             'maven',
-            new vscode.ShellExecution(command, goalName.split(' '), {
+            new vscode.ShellExecution(quotedCommand, goalName.split(' '), {
                 cwd: this.buildTool.projectRoot
             }),
             '$maven'
         );
         
         task.group = vscode.TaskGroup.Build;
+        task.presentationOptions = {
+            echo: true,
+            reveal: vscode.TaskRevealKind.Always,
+            focus: false,
+            panel: vscode.TaskPanelKind.Shared,
+            showReuseMessage: true,
+            clear: false
+        };
         return task;
     }
 }

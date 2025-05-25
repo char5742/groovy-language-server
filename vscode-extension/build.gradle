@@ -52,6 +52,8 @@ task vsce(type: Exec) {
     vsce += ".cmd"
   }
   workingDir "$buildDir"
+  // Skip license prompt to allow non-interactive builds
+  // The extension already includes LICENSE file in the package
   commandLine "$vsce", "package", "--skip-license"
 }
 

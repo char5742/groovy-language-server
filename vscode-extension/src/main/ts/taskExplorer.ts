@@ -4,6 +4,13 @@ import { BuildToolDetector, BuildToolType, GradleTaskProvider, MavenTaskProvider
 interface TaskTreeItem extends vscode.TreeItem {
     task?: string;
     buildToolType?: BuildToolType;
+    workspaceName?: string;
+}
+
+interface TaskProviderInfo {
+    provider: TaskProvider;
+    buildToolType: BuildToolType;
+    workspaceName: string;
 }
 
 export class TaskExplorerProvider implements vscode.TreeDataProvider<TaskTreeItem> {
@@ -11,7 +18,7 @@ export class TaskExplorerProvider implements vscode.TreeDataProvider<TaskTreeIte
     readonly onDidChangeTreeData: vscode.Event<TaskTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
     
     private tasks: Map<string, string[]> = new Map();
-    private taskProviders: Map<string, TaskProvider> = new Map();
+    private taskProviders: Map<string, TaskProviderInfo> = new Map();
     
     constructor() {
         this.refresh();
@@ -47,11 +54,18 @@ export class TaskExplorerProvider implements vscode.TreeDataProvider<TaskTreeIte
                 if (provider) {
                     try {
                         const tasks = await provider.getTasks();
-                        const key = `${buildTool.type}:${workspaceFolder.name}`;
+                        const key = this.createKey(buildTool.type, workspaceFolder.name);
                         this.tasks.set(key, tasks);
-                        this.taskProviders.set(key, provider);
+                        this.taskProviders.set(key, {
+                            provider,
+                            buildToolType: buildTool.type,
+                            workspaceName: workspaceFolder.name
+                        });
                     } catch (error) {
                         console.error(`Failed to get tasks for ${workspaceFolder.name}:`, error);
+                        vscode.window.showWarningMessage(
+                            `Failed to load ${buildTool.type} tasks for ${workspaceFolder.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
+                        );
                     }
                 }
             }
@@ -67,22 +81,21 @@ export class TaskExplorerProvider implements vscode.TreeDataProvider<TaskTreeIte
             // Root level - show workspace folders with build tools
             const items: TaskTreeItem[] = [];
             
-            for (const [key, tasks] of this.tasks) {
-                const [buildToolType, workspaceName] = key.split(':');
+            for (const [key, providerInfo] of this.taskProviders) {
                 const item: TaskTreeItem = {
-                    label: `${workspaceName} (${buildToolType})`,
+                    label: `${providerInfo.workspaceName} (${providerInfo.buildToolType})`,
                     collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
                     contextValue: 'buildTool',
-                    buildToolType: buildToolType as BuildToolType
+                    buildToolType: providerInfo.buildToolType,
+                    workspaceName: providerInfo.workspaceName
                 };
                 items.push(item);
             }
             
             return Promise.resolve(items);
-        } else if (element.contextValue === 'buildTool') {
+        } else if (element.contextValue === 'buildTool' && element.buildToolType && element.workspaceName) {
             // Show tasks for a specific build tool
-            const label = typeof element.label === 'string' ? element.label : element.label?.label || '';
-            const key = `${element.buildToolType}:${label.split(' ')[0]}`;
+            const key = this.createKey(element.buildToolType, element.workspaceName);
             const tasks = this.tasks.get(key) || [];
             
             const items: TaskTreeItem[] = tasks.map(task => ({
@@ -91,6 +104,7 @@ export class TaskExplorerProvider implements vscode.TreeDataProvider<TaskTreeIte
                 contextValue: 'task',
                 task: task,
                 buildToolType: element.buildToolType,
+                workspaceName: element.workspaceName,
                 command: {
                     command: 'groovy.runTask',
                     title: 'Run Task',
@@ -105,10 +119,23 @@ export class TaskExplorerProvider implements vscode.TreeDataProvider<TaskTreeIte
     }
     
     runTask(key: string, taskName: string): void {
-        const provider = this.taskProviders.get(key);
-        if (provider) {
-            const task = provider.createTask(taskName);
-            vscode.tasks.executeTask(task);
+        const providerInfo = this.taskProviders.get(key);
+        if (providerInfo) {
+            const task = providerInfo.provider.createTask(taskName);
+            vscode.tasks.executeTask(task).then(
+                () => {
+                    vscode.window.showInformationMessage(`Running ${providerInfo.buildToolType} task: ${taskName}`);
+                },
+                (error) => {
+                    vscode.window.showErrorMessage(`Failed to run task: ${error.message}`);
+                }
+            );
+        } else {
+            vscode.window.showErrorMessage(`Task provider not found for: ${key}`);
         }
+    }
+    
+    private createKey(buildToolType: BuildToolType, workspaceName: string): string {
+        return `${buildToolType}:${workspaceName}`;
     }
 }
