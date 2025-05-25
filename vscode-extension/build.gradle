@@ -22,6 +22,11 @@ task copySyntaxes(type: Copy) {
     into "$buildDir/syntaxes"
 }
 
+task copySnippets(type: Copy) {
+    from "$projectDir/snippets"
+    into "$buildDir/snippets"
+}
+
 task webpack(type: Exec) {
   inputs.file("package.json")
   inputs.file("package-lock.json")
@@ -47,13 +52,14 @@ task vsce(type: Exec) {
     vsce += ".cmd"
   }
   workingDir "$buildDir"
-  commandLine "$vsce", "package"
+  commandLine "$vsce", "package", "--skip-license"
 }
 
 tasks.webpack.dependsOn tasks.npmInstall
 tasks.vsce.dependsOn tasks.copyJar
 tasks.vsce.dependsOn tasks.copyLocal
 tasks.vsce.dependsOn tasks.copySyntaxes
+tasks.vsce.dependsOn tasks.copySnippets
 tasks.vsce.dependsOn tasks.webpack
 tasks.build.dependsOn tasks.vsce
 

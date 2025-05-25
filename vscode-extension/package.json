@@ -21,9 +21,14 @@
     "Groovy",
     "Grails"
   ],
-  "main": "extension",
+  "main": "./extension.js",
   "engines": {
     "vscode": "^1.99.0"
+  },
+  "scripts": {
+    "compile": "webpack --mode production",
+    "watch": "webpack --mode development --watch",
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^20.17.50",
@@ -55,6 +60,28 @@
       {
         "command": "groovy.restartServer",
         "title": "Restart Groovy language server",
+        "category": "Groovy"
+      },
+      {
+        "command": "groovy.gradle.refresh",
+        "title": "Refresh Gradle Tasks",
+        "category": "Groovy",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "groovy.gradle.runTask",
+        "title": "Run Gradle Task",
+        "category": "Groovy"
+      },
+      {
+        "command": "groovy.maven.refresh",
+        "title": "Refresh Maven Goals",
+        "category": "Groovy",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "groovy.maven.runGoal",
+        "title": "Run Maven Goal",
         "category": "Groovy"
       }
     ],
@@ -92,6 +119,96 @@
         "language": "groovy",
         "path": "./snippets/groovy.json"
       }
-    ]
+    ],
+    "taskDefinitions": [
+      {
+        "type": "gradle",
+        "required": ["task"],
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "The Gradle task to execute"
+          },
+          "args": {
+            "type": "array",
+            "description": "Additional arguments to pass to Gradle"
+          }
+        }
+      },
+      {
+        "type": "maven",
+        "required": ["goal"],
+        "properties": {
+          "goal": {
+            "type": "string",
+            "description": "The Maven goal to execute"
+          },
+          "args": {
+            "type": "array",
+            "description": "Additional arguments to pass to Maven"
+          }
+        }
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "gradle",
+        "owner": "groovy",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.+):(\\d+):\\s+(error|warning):\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
+      },
+      {
+        "name": "maven",
+        "owner": "groovy",
+        "fileLocation": ["absolute"],
+        "pattern": {
+          "regexp": "^\\[ERROR\\]\\s+(.+):\\[(\\d+),(\\d+)\\]\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "groovyTasksExplorer",
+          "name": "Groovy Tasks",
+          "when": "resourceExtname == .gradle || resourceExtname == .xml",
+          "contextualTitle": "Groovy Tasks",
+          "icon": "$(list-tree)"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "groovy-tasks",
+          "title": "Groovy Tasks",
+          "icon": "$(tools)"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "groovy.gradle.refresh",
+          "when": "view == groovyTasksExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "groovy.maven.refresh",
+          "when": "view == groovyTasksExplorer",
+          "group": "navigation"
+        }
+      ]
+    }
   }
 }
