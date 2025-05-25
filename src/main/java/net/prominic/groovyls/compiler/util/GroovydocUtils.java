@@ -155,7 +155,7 @@ public class GroovydocUtils {
 				if (spaceIndex > 0) {
 					String paramName = content.substring(0, spaceIndex);
 					String paramDesc = content.substring(spaceIndex + 1).trim();
-					paramTags.add("`" + paramName + "` - " + reformatLine(paramDesc));
+					paramTags.add("`" + paramName + "` - " + paramDesc);
 				} else {
 					paramTags.add("`" + content + "`");
 				}
@@ -167,7 +167,7 @@ public class GroovydocUtils {
 				if (spaceIndex > 0) {
 					String exceptionType = content.substring(0, spaceIndex);
 					String exceptionDesc = content.substring(spaceIndex + 1).trim();
-					throwsTags.add("`" + exceptionType + "` - " + reformatLine(exceptionDesc));
+					throwsTags.add("`" + exceptionType + "` - " + exceptionDesc);
 				} else {
 					throwsTags.add("`" + content + "`");
 				}

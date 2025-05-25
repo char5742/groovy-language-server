@@ -123,9 +123,12 @@ public class CodeActionProvider {
 		}
 		
 		// Add @return tag if not void
-		if (methodNode.getReturnType() != null && !methodNode.getReturnType().getName().equals("void")) {
-			groovydocBuilder.append(" *\n");
-			groovydocBuilder.append(" * @return TODO: Add return value description\n");
+		if (methodNode.getReturnType() != null) {
+			String returnTypeName = methodNode.getReturnType().getName();
+			if (returnTypeName != null && !returnTypeName.equals("void")) {
+				groovydocBuilder.append(" *\n");
+				groovydocBuilder.append(" * @return TODO: Add return value description\n");
+			}
 		}
 		
 		// Add @throws tag placeholder
@@ -144,29 +147,12 @@ public class CodeActionProvider {
 		Range insertRange = new Range(insertPosition, insertPosition);
 		
 		// Calculate proper indentation
-		String fileContent = fileContentsTracker.getContents(uri);
-		if (fileContent != null) {
-			String[] lines = fileContent.split("\n");
-			if (methodNode.getLineNumber() - 1 < lines.length) {
-				String methodLine = lines[methodNode.getLineNumber() - 1];
-				int indentLevel = 0;
-				for (char c : methodLine.toCharArray()) {
-					if (c == ' ') {
-						indentLevel++;
-					} else if (c == '\t') {
-						indentLevel += 4; // Assuming 4 spaces per tab
-					} else {
-						break;
-					}
-				}
-				
-				// Add indentation to each line
-				String indent = " ".repeat(indentLevel);
-				String[] groovydocLines = groovydocBuilder.toString().split("\n");
-				groovydocBuilder = new StringBuilder();
-				for (String line : groovydocLines) {
-					groovydocBuilder.append(indent).append(line).append("\n");
-				}
+		String indent = calculateIndentation(uri, methodNode.getLineNumber() - 1);
+		if (indent != null) {
+			String[] groovydocLines = groovydocBuilder.toString().split("\n");
+			groovydocBuilder = new StringBuilder();
+			for (String line : groovydocLines) {
+				groovydocBuilder.append(indent).append(line).append("\n");
 			}
 		}
 
@@ -197,29 +183,12 @@ public class CodeActionProvider {
 		Range insertRange = new Range(insertPosition, insertPosition);
 		
 		// Calculate proper indentation
-		String fileContent = fileContentsTracker.getContents(uri);
-		if (fileContent != null) {
-			String[] lines = fileContent.split("\n");
-			if (classNode.getLineNumber() - 1 < lines.length) {
-				String classLine = lines[classNode.getLineNumber() - 1];
-				int indentLevel = 0;
-				for (char c : classLine.toCharArray()) {
-					if (c == ' ') {
-						indentLevel++;
-					} else if (c == '\t') {
-						indentLevel += 4; // Assuming 4 spaces per tab
-					} else {
-						break;
-					}
-				}
-				
-				// Add indentation to each line
-				String indent = " ".repeat(indentLevel);
-				String[] groovydocLines = groovydocBuilder.toString().split("\n");
-				groovydocBuilder = new StringBuilder();
-				for (String line : groovydocLines) {
-					groovydocBuilder.append(indent).append(line).append("\n");
-				}
+		String indent = calculateIndentation(uri, classNode.getLineNumber() - 1);
+		if (indent != null) {
+			String[] groovydocLines = groovydocBuilder.toString().split("\n");
+			groovydocBuilder = new StringBuilder();
+			for (String line : groovydocLines) {
+				groovydocBuilder.append(indent).append(line).append("\n");
 			}
 		}
 
@@ -233,5 +202,30 @@ public class CodeActionProvider {
 		codeAction.setEdit(workspaceEdit);
 
 		return codeAction;
+	}
+	
+	private String calculateIndentation(URI uri, int lineNumber) {
+		String fileContent = fileContentsTracker.getContents(uri);
+		if (fileContent == null) {
+			return "";
+		}
+		
+		String[] lines = fileContent.split("\n");
+		if (lineNumber >= lines.length) {
+			return "";
+		}
+		
+		String targetLine = lines[lineNumber];
+		StringBuilder indentBuilder = new StringBuilder();
+		
+		for (char c : targetLine.toCharArray()) {
+			if (c == ' ' || c == '\t') {
+				indentBuilder.append(c);
+			} else {
+				break;
+			}
+		}
+		
+		return indentBuilder.toString();
 	}
 }

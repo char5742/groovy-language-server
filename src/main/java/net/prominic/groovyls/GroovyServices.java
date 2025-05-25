@@ -128,6 +128,7 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 	private ScanResult classGraphScanResult = null;
 	private GroovyClassLoader classLoader = null;
 	private URI previousContext = null;
+	private CodeActionProvider codeActionProvider = null;
 
 	public GroovyServices(ICompilationUnitFactory factory) {
 		compilationUnitFactory = factory;
@@ -383,11 +384,12 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 
 	@Override
 	public CompletableFuture<List<Either<Command, CodeAction>>> codeAction(CodeActionParams params) {
-		URI uri = URI.create(params.getTextDocument().getUri());
-		recompileIfContextChanged(uri);
-
-		CodeActionProvider provider = new CodeActionProvider(astVisitor, fileContentsTracker);
-		return provider.provideCodeActions(params);
+		if (codeActionProvider == null || astVisitor == null) {
+			URI uri = URI.create(params.getTextDocument().getUri());
+			recompileIfContextChanged(uri);
+			codeActionProvider = new CodeActionProvider(astVisitor, fileContentsTracker);
+		}
+		return codeActionProvider.provideCodeActions(params);
 	}
 
 	@Override
@@ -416,6 +418,8 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 		}
 		astVisitor = new ASTNodeVisitor();
 		astVisitor.visitCompilationUnit(compilationUnit);
+		// Reset provider when AST changes
+		codeActionProvider = null;
 	}
 
 	private void visitAST(Set<URI> uris) {
