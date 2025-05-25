@@ -383,5 +383,164 @@
       "${3:line3}'''"
     ],
     "description": "Multiline string literal"
+  },
+  "Class with Multiple Properties": {
+    "prefix": "classm",
+    "body": [
+      "class ${1:ClassName} {",
+      "\t${2:String} ${3:property1}",
+      "\t${4:int} ${5:property2}",
+      "\t",
+      "\t${1:ClassName}(${2:String} ${3:property1}, ${4:int} ${5:property2}) {",
+      "\t\tthis.${3:property1} = ${3:property1}",
+      "\t\tthis.${5:property2} = ${5:property2}",
+      "\t}",
+      "\t",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a new Groovy class with multiple properties"
+  },
+  "CompileStatic Annotation": {
+    "prefix": "compilestatic",
+    "body": [
+      "@CompileStatic"
+    ],
+    "description": "Add @CompileStatic annotation for static compilation"
+  },
+  "CompileStatic Class": {
+    "prefix": "cstatic",
+    "body": [
+      "import groovy.transform.CompileStatic",
+      "",
+      "@CompileStatic",
+      "class ${1:ClassName} {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a statically compiled class"
+  },
+  "Grab Dependency": {
+    "prefix": "grab",
+    "body": [
+      "@Grab('${1:group}:${2:module}:${3:version}')"
+    ],
+    "description": "Add a Grape dependency"
+  },
+  "Grapes Multiple": {
+    "prefix": "grapes",
+    "body": [
+      "@Grapes([",
+      "\t@Grab('${1:group1}:${2:module1}:${3:version1}'),",
+      "\t@Grab('${4:group2}:${5:module2}:${6:version2}')",
+      "])"
+    ],
+    "description": "Add multiple Grape dependencies"
+  },
+  "With Method": {
+    "prefix": "with",
+    "body": [
+      "${1:object}.with {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Use with method for object configuration"
+  },
+  "Tap Method": {
+    "prefix": "tap",
+    "body": [
+      "${1:object}.tap {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Use tap method to access object in-place"
+  },
+  "Category Definition": {
+    "prefix": "category",
+    "body": [
+      "class ${1:CategoryName} {",
+      "\tstatic ${2:returnType} ${3:methodName}(${4:Type} self${5:, params}) {",
+      "\t\t${0}",
+      "\t}",
+      "}"
+    ],
+    "description": "Define a category class"
+  },
+  "Use Category": {
+    "prefix": "usecat",
+    "body": [
+      "use(${1:CategoryName}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Use a category"
+  },
+  "Switch with Type Matching": {
+    "prefix": "switchtype",
+    "body": [
+      "switch(${1:variable}) {",
+      "\tcase String:",
+      "\t\t${2:// handle string}",
+      "\t\tbreak",
+      "\tcase Number:",
+      "\t\t${3:// handle number}",
+      "\t\tbreak",
+      "\tcase ~/\\\\d+/:",
+      "\t\t${4:// handle regex match}",
+      "\t\tbreak",
+      "\tdefault:",
+      "\t\t${5:// default code}",
+      "}"
+    ],
+    "description": "Switch statement with type matching"
+  },
+  "AST Transformation": {
+    "prefix": "asttransform",
+    "body": [
+      "import groovy.transform.${1:TransformationType}"
+    ],
+    "description": "Import AST transformation"
+  },
+  "ToString Annotation": {
+    "prefix": "tostring",
+    "body": [
+      "@ToString(includeNames = ${1:true}, excludes = [${2:'field'}])"
+    ],
+    "description": "Add @ToString annotation"
+  },
+  "EqualsAndHashCode": {
+    "prefix": "equalshash",
+    "body": [
+      "@EqualsAndHashCode"
+    ],
+    "description": "Add @EqualsAndHashCode annotation"
+  },
+  "Canonical": {
+    "prefix": "canonical",
+    "body": [
+      "@Canonical"
+    ],
+    "description": "Add @Canonical annotation (combines @ToString, @EqualsAndHashCode, @TupleConstructor)"
+  },
+  "Immutable": {
+    "prefix": "immutable",
+    "body": [
+      "@Immutable"
+    ],
+    "description": "Add @Immutable annotation"
+  },
+  "TupleConstructor": {
+    "prefix": "tuplecons",
+    "body": [
+      "@TupleConstructor"
+    ],
+    "description": "Add @TupleConstructor annotation"
+  },
+  "Delegate": {
+    "prefix": "delegate",
+    "body": [
+      "@Delegate ${1:Type} ${2:fieldName}"
+    ],
+    "description": "Add @Delegate annotation"
   }
 }
