@@ -55,3 +55,17 @@ cd groovy-language-server/vscode-extension
 ## ライセンス
 
 Apache License 2.0 - 詳細は[LICENSE](LICENSE)ファイルを参照してください。
+
+### サードパーティライセンス
+
+#### Groovy TextMate Grammar
+
+このプロジェクトは、Microsoft VSCodeリポジトリから取得したGroovy TextMate文法ファイル（`syntaxes/groovy.tmLanguage.json`）を使用しています。
+
+- **取得元**: https://github.com/microsoft/vscode/blob/main/extensions/groovy/syntaxes/groovy.tmLanguage.json
+- **元のソース**: https://github.com/textmate/groovy.tmbundle/
+- **ライセンス**: 以下の条件で使用が許可されています：
+  - Permission to copy, use, modify, sell and distribute this software is granted
+  - This software is provided "as is" without express or implied warranty
+
+文法ファイルの改善や修正を提案する場合は、まず元のTextMateリポジトリ（https://github.com/textmate/groovy.tmbundle/）にPull Requestを送信することをお勧めします。

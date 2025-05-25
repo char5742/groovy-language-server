@@ -43,3 +43,13 @@ VSCode拡張機能のビルド:
 - `groovy.java.home`と`groovy.classpath`の設定をサポート
 - `.groovy`ファイルで有効化
 - 言語サーバーのデバッグは`extension.ts:145`のデバッグ引数のコメントを外してください
+
+## サードパーティ依存関係
+
+### Groovy TextMate Grammar
+
+- **ファイル**: `vscode-extension/syntaxes/groovy.tmLanguage.json`
+- **取得元**: https://github.com/microsoft/vscode/blob/main/extensions/groovy/syntaxes/groovy.tmLanguage.json
+- **元のソース**: https://github.com/textmate/groovy.tmbundle/
+- **バージョン**: commit 85d8f7c97ae473ccb9473f6c8d27e4ec957f4be1
+- **目的**: Groovyファイルのシンタックスハイライトを提供
