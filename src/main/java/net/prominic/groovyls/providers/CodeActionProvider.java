@@ -75,7 +75,8 @@ public class CodeActionProvider {
 		// Check if we can generate Groovydoc for this node
 		if (definitionNode instanceof MethodNode) {
 			MethodNode methodNode = (MethodNode) definitionNode;
-			if (!hasGroovydoc(methodNode)) {
+			// Skip synthetic methods and methods without valid line numbers
+			if (methodNode.getLineNumber() > 0 && !methodNode.isSynthetic() && !hasGroovydoc(methodNode)) {
 				CodeAction action = createGroovydocAction(uri, methodNode);
 				if (action != null) {
 					actions.add(Either.forRight(action));
@@ -83,7 +84,8 @@ public class CodeActionProvider {
 			}
 		} else if (definitionNode instanceof ClassNode) {
 			ClassNode classNode = (ClassNode) definitionNode;
-			if (!hasGroovydoc(classNode)) {
+			// Skip synthetic classes and classes without valid line numbers
+			if (classNode.getLineNumber() > 0 && !classNode.isSynthetic() && !hasGroovydoc(classNode)) {
 				CodeAction action = createGroovydocAction(uri, classNode);
 				if (action != null) {
 					actions.add(Either.forRight(action));
@@ -161,7 +163,7 @@ public class CodeActionProvider {
 		
 		// Calculate proper indentation
 		String indent = calculateIndentation(uri, methodNode.getLineNumber() - 1);
-		if (indent != null) {
+		if (indent != null && !indent.isEmpty()) {
 			String[] groovydocLines = groovydocBuilder.toString().split("\n");
 			groovydocBuilder = new StringBuilder();
 			for (String line : groovydocLines) {
@@ -236,7 +238,7 @@ public class CodeActionProvider {
 		}
 		
 		String[] lines = fileContent.split("\n");
-		if (lineNumber >= lines.length) {
+		if (lineNumber < 0 || lineNumber >= lines.length) {
 			return "";
 		}
 		
