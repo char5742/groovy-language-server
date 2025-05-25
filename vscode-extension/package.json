@@ -66,6 +66,11 @@
         "category": "Groovy"
       },
       {
+        "command": "groovy.refreshGradleSettings",
+        "title": "Refresh Gradle Settings",
+        "category": "Groovy"
+      },
+      {
         "command": "groovy.gradle.refresh",
         "title": "Refresh Gradle Tasks",
         "category": "Groovy",

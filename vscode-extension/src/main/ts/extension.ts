@@ -28,6 +28,7 @@ import {
 import { TaskExplorerProvider } from "./taskExplorer";
 import { registerTaskProviders } from "./taskProvider";
 import { GroovyDebugAdapterDescriptorFactory, GroovyDebugConfigurationProvider } from "./groovyDebugAdapter";
+import { detectGradleSettings, getComputedClasspath, getComputedJavaHome, getCachedGradleInfo } from "./utils/gradleUtils";
 
 const MISSING_JAVA_ERROR =
   "Could not locate valid JDK. To configure JDK manually, use the groovy.java.home setting.";
@@ -77,14 +78,27 @@ function restartLanguageServer() {
   );
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   extensionContext = context;
+  
+  // Auto-detect Gradle settings
+  await detectGradleSettings();
+  
   javaPath = findJava();
   vscode.workspace.onDidChangeConfiguration(onDidChangeConfiguration);
 
   vscode.commands.registerCommand(
     "groovy.restartServer",
     restartLanguageServer
+  );
+
+  vscode.commands.registerCommand(
+    "groovy.refreshGradleSettings",
+    async () => {
+      await detectGradleSettings();
+      vscode.window.showInformationMessage("Gradle settings refreshed");
+      restartLanguageServer();
+    }
   );
 
   // Register task-related commands
@@ -185,10 +199,59 @@ function startLanguageServer() {
           return;
         }
         progress.report({ message: INITIALIZING_MESSAGE });
+        
+        // Debug: Log computed classpath
+        const computedClasspath = getComputedClasspath();
+        console.log("Computed classpath:", computedClasspath);
+        
         let clientOptions: LanguageClientOptions = {
           documentSelector: [{ scheme: "file", language: "groovy" }],
           synchronize: {
             configurationSection: "groovy",
+          },
+          initializationOptions: {},
+          middleware: {
+            workspace: {
+              configuration: async (params, token, next) => {
+                console.log("Configuration request from language server:", JSON.stringify(params));
+                const result = await next(params, token);
+                console.log("Original configuration result:", JSON.stringify(result));
+                
+                if (Array.isArray(result)) {
+                  for (let i = 0; i < result.length; i++) {
+                    if (params.items[i].section === "groovy") {
+                      // Inject computed classpath into the configuration
+                      const computed = getComputedClasspath();
+                      console.log("Computed classpath from Gradle:", computed);
+                      
+                      // Get Gradle info directly, not from computed string
+                      const gradleInfo = getCachedGradleInfo();
+                      if (gradleInfo && gradleInfo.classpath) {
+                        // Ensure result[i] exists
+                        if (!result[i]) {
+                          result[i] = {};
+                        }
+                        
+                        // Get user classpath (if any)
+                        const userClasspath = result[i].classpath || [];
+                        
+                        // Merge arrays directly
+                        const mergedClasspath = [...userClasspath, ...gradleInfo.classpath];
+                        result[i].classpath = mergedClasspath;
+                        
+                        console.log("User classpath entries:", userClasspath.length);
+                        console.log("Gradle classpath entries:", gradleInfo.classpath.length);
+                        console.log("Merged classpath count:", mergedClasspath.length);
+                        console.log("Sample classpath entries:", mergedClasspath.slice(0, 3));
+                      } else {
+                        console.log("No Gradle classpath available");
+                      }
+                    }
+                  }
+                }
+                return result;
+              }
+            }
           },
           uriConverters: {
             code2Protocol: (value: vscode.Uri) => {
@@ -214,9 +277,18 @@ function startLanguageServer() {
         ];
         //uncomment to allow a debugger to attach to the language server
         //args.unshift("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005,quiet=y");
+        
+        // Enable debug logging for troubleshooting
+        args.unshift("-Dgroovyls.debug=true");
         let executable: Executable = {
           command: javaPath,
           args: args,
+          options: {
+            env: {
+              ...process.env,
+              GROOVY_LS_DEBUG: "true"
+            }
+          }
         };
         languageClient = new LanguageClient(
           "groovy",
@@ -226,6 +298,20 @@ function startLanguageServer() {
         );
         try {
           await languageClient.start();
+          
+          // Send classpath configuration after client is ready
+          const gradleInfo = getCachedGradleInfo();
+          if (gradleInfo && gradleInfo.classpath && gradleInfo.classpath.length > 0) {
+            console.log("Sending Gradle classpath to language server:", gradleInfo.classpath.length, "entries");
+            // Send configuration change notification
+            languageClient.sendNotification("workspace/didChangeConfiguration", {
+              settings: {
+                groovy: {
+                  classpath: gradleInfo.classpath
+                }
+              }
+            });
+          }
         } catch (e) {
           resolve();
           vscode.window.showErrorMessage(STARTUP_ERROR);
