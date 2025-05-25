@@ -86,6 +86,12 @@
         "scopeName": "source.groovy",
         "path": "./syntaxes/groovy.tmLanguage.json"
       }
+    ],
+    "snippets": [
+      {
+        "language": "groovy",
+        "path": "./snippets/groovy.json"
+      }
     ]
   }
 }
