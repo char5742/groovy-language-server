@@ -130,7 +130,7 @@ public class GroovydocUtils {
 			if (markdownBuilder.length() > 0) {
 				markdownBuilder.append("\n\n");
 			}
-			markdownBuilder.append("**Returns:** ").append(returnTag);
+			markdownBuilder.append("**Returns:** ").append(reformatLine(returnTag));
 		}
 		
 		// Add throws section

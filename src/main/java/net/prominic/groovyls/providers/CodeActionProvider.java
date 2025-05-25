@@ -29,6 +29,7 @@ import org.codehaus.groovy.ast.ASTNode;
 import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.ClassNode;
 import org.codehaus.groovy.ast.Parameter;
+import org.codehaus.groovy.ast.AnnotationNode;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionParams;
@@ -143,7 +144,19 @@ public class CodeActionProvider {
 		groovydocBuilder.append(" */\n");
 
 		// Create text edit to insert Groovydoc
-		Position insertPosition = new Position(methodNode.getLineNumber() - 1, 0);
+		// Consider annotations when determining insert position
+		int insertLine = methodNode.getLineNumber() - 1;
+		List<AnnotationNode> annotations = methodNode.getAnnotations();
+		if (annotations != null && !annotations.isEmpty()) {
+			// Find the first annotation line
+			for (AnnotationNode annotation : annotations) {
+				if (annotation.getLineNumber() > 0 && annotation.getLineNumber() - 1 < insertLine) {
+					insertLine = annotation.getLineNumber() - 1;
+				}
+			}
+		}
+		
+		Position insertPosition = new Position(insertLine, 0);
 		Range insertRange = new Range(insertPosition, insertPosition);
 		
 		// Calculate proper indentation
@@ -179,7 +192,19 @@ public class CodeActionProvider {
 		groovydocBuilder.append(" */\n");
 
 		// Create text edit to insert Groovydoc
-		Position insertPosition = new Position(classNode.getLineNumber() - 1, 0);
+		// Consider annotations when determining insert position
+		int insertLine = classNode.getLineNumber() - 1;
+		List<AnnotationNode> annotations = classNode.getAnnotations();
+		if (annotations != null && !annotations.isEmpty()) {
+			// Find the first annotation line
+			for (AnnotationNode annotation : annotations) {
+				if (annotation.getLineNumber() > 0 && annotation.getLineNumber() - 1 < insertLine) {
+					insertLine = annotation.getLineNumber() - 1;
+				}
+			}
+		}
+		
+		Position insertPosition = new Position(insertLine, 0);
 		Range insertRange = new Range(insertPosition, insertPosition);
 		
 		// Calculate proper indentation
