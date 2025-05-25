@@ -27,6 +27,7 @@ import {
 } from "vscode-languageclient/node";
 import { TaskExplorerProvider } from "./taskExplorer";
 import { registerTaskProviders } from "./taskProvider";
+import { GroovyDebugAdapterDescriptorFactory, GroovyDebugConfigurationProvider } from "./groovyDebugAdapter";
 
 const MISSING_JAVA_ERROR =
   "Could not locate valid JDK. To configure JDK manually, use the groovy.java.home setting.";
@@ -143,6 +144,15 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register task providers
   registerTaskProviders(context);
+
+  // Register debug adapter
+  const debugAdapterFactory = new GroovyDebugAdapterDescriptorFactory();
+  const debugConfigProvider = new GroovyDebugConfigurationProvider();
+  
+  context.subscriptions.push(
+    vscode.debug.registerDebugAdapterDescriptorFactory('groovy', debugAdapterFactory),
+    vscode.debug.registerDebugConfigurationProvider('groovy', debugConfigProvider)
+  );
 
   startLanguageServer();
 }
