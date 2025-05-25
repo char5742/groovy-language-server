@@ -1,0 +1,387 @@
+{
+  "Class Definition": {
+    "prefix": "class",
+    "body": [
+      "class ${1:ClassName} {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a new Groovy class"
+  },
+  "Class with Constructor": {
+    "prefix": "classc",
+    "body": [
+      "class ${1:ClassName} {",
+      "\t${2:String} ${3:property}",
+      "\t",
+      "\t${1:ClassName}(${2:String} ${3:property}) {",
+      "\t\tthis.${3:property} = ${3:property}",
+      "\t}",
+      "\t",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a new Groovy class with constructor"
+  },
+  "Interface Definition": {
+    "prefix": "interface",
+    "body": [
+      "interface ${1:InterfaceName} {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a new Groovy interface"
+  },
+  "Trait Definition": {
+    "prefix": "trait",
+    "body": [
+      "trait ${1:TraitName} {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a new Groovy trait"
+  },
+  "Method Definition": {
+    "prefix": "def",
+    "body": [
+      "def ${1:methodName}(${2:params}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a new method"
+  },
+  "Static Method": {
+    "prefix": "sdef",
+    "body": [
+      "static def ${1:methodName}(${2:params}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a new static method"
+  },
+  "Private Method": {
+    "prefix": "pdef",
+    "body": [
+      "private def ${1:methodName}(${2:params}) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a new private method"
+  },
+  "Closure": {
+    "prefix": "closure",
+    "body": [
+      "{ ${1:params} ->",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a closure"
+  },
+  "Closure with Default Parameter": {
+    "prefix": "closureit",
+    "body": [
+      "{",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a closure with implicit 'it' parameter"
+  },
+  "Each Loop": {
+    "prefix": "each",
+    "body": [
+      "${1:collection}.each { ${2:item} ->",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Iterate over a collection with each"
+  },
+  "Each with Index": {
+    "prefix": "eachi",
+    "body": [
+      "${1:collection}.eachWithIndex { ${2:item}, ${3:index} ->",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Iterate over a collection with index"
+  },
+  "Collect": {
+    "prefix": "collect",
+    "body": [
+      "${1:collection}.collect { ${2:item} ->",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Transform collection with collect"
+  },
+  "Find All": {
+    "prefix": "findAll",
+    "body": [
+      "${1:collection}.findAll { ${2:item} ->",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Filter collection with findAll"
+  },
+  "Find": {
+    "prefix": "find",
+    "body": [
+      "${1:collection}.find { ${2:item} ->",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Find first matching element"
+  },
+  "Inject/Reduce": {
+    "prefix": "inject",
+    "body": [
+      "${1:collection}.inject(${2:initialValue}) { ${3:accumulator}, ${4:item} ->",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Reduce collection with inject"
+  },
+  "Property Getter": {
+    "prefix": "getter",
+    "body": [
+      "def get${1:PropertyName}() {",
+      "\t${2:propertyName}",
+      "}"
+    ],
+    "description": "Create a property getter"
+  },
+  "Property Setter": {
+    "prefix": "setter",
+    "body": [
+      "def set${1:PropertyName}(${2:value}) {",
+      "\t${3:propertyName} = ${2:value}",
+      "}"
+    ],
+    "description": "Create a property setter"
+  },
+  "Groovy Property": {
+    "prefix": "prop",
+    "body": [
+      "${1:Type} ${2:propertyName}"
+    ],
+    "description": "Define a Groovy property"
+  },
+  "Groovy Script": {
+    "prefix": "script",
+    "body": [
+      "#!/usr/bin/env groovy",
+      "",
+      "${0}"
+    ],
+    "description": "Create a Groovy script with shebang"
+  },
+  "Main Method": {
+    "prefix": "main",
+    "body": [
+      "static void main(String[] args) {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create main method"
+  },
+  "Spock Specification": {
+    "prefix": "spock",
+    "body": [
+      "import spock.lang.Specification",
+      "",
+      "class ${1:ClassName}Spec extends Specification {",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a Spock specification class"
+  },
+  "Spock Test Method": {
+    "prefix": "spocktest",
+    "body": [
+      "def \"${1:should do something}\"() {",
+      "\tgiven:",
+      "\t${2:// setup}",
+      "\t",
+      "\twhen:",
+      "\t${3:// action}",
+      "\t",
+      "\tthen:",
+      "\t${4:// assertion}",
+      "}"
+    ],
+    "description": "Create a Spock test method"
+  },
+  "Spock Where Block": {
+    "prefix": "spockwhere",
+    "body": [
+      "where:",
+      "${1:a} | ${2:b} | ${3:result}",
+      "${4:1} | ${5:2} | ${6:3}",
+      "${7:4} | ${8:5} | ${9:9}"
+    ],
+    "description": "Create a Spock where block for data-driven tests"
+  },
+  "Spock Expect": {
+    "prefix": "spockexpect",
+    "body": [
+      "def \"${1:test name}\"() {",
+      "\texpect:",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a simple Spock test with expect block"
+  },
+  "Builder Pattern": {
+    "prefix": "builder",
+    "body": [
+      "${1:builder} {",
+      "\t${2:property} ${3:value}",
+      "\t${0}",
+      "}"
+    ],
+    "description": "Create a builder pattern structure"
+  },
+  "MarkupBuilder": {
+    "prefix": "markupbuilder",
+    "body": [
+      "import groovy.xml.MarkupBuilder",
+      "",
+      "def writer = new StringWriter()",
+      "def ${1:xml} = new MarkupBuilder(writer)",
+      "",
+      "${1:xml}.${2:root} {",
+      "\t${0}",
+      "}",
+      "",
+      "println writer.toString()"
+    ],
+    "description": "Create XML with MarkupBuilder"
+  },
+  "JsonBuilder": {
+    "prefix": "jsonbuilder",
+    "body": [
+      "import groovy.json.JsonBuilder",
+      "",
+      "def ${1:json} = new JsonBuilder()",
+      "",
+      "${1:json} {",
+      "\t${2:property} ${3:value}",
+      "\t${0}",
+      "}",
+      "",
+      "println ${1:json}.toPrettyString()"
+    ],
+    "description": "Create JSON with JsonBuilder"
+  },
+  "Try-Catch": {
+    "prefix": "try",
+    "body": [
+      "try {",
+      "\t${1:// code}",
+      "} catch (${2:Exception} ${3:e}) {",
+      "\t${4:// handle exception}",
+      "}"
+    ],
+    "description": "Try-catch block"
+  },
+  "Try-Catch-Finally": {
+    "prefix": "tryf",
+    "body": [
+      "try {",
+      "\t${1:// code}",
+      "} catch (${2:Exception} ${3:e}) {",
+      "\t${4:// handle exception}",
+      "} finally {",
+      "\t${5:// cleanup}",
+      "}"
+    ],
+    "description": "Try-catch-finally block"
+  },
+  "Assert": {
+    "prefix": "assert",
+    "body": [
+      "assert ${1:condition} : \"${2:message}\""
+    ],
+    "description": "Assert with message"
+  },
+  "Switch Statement": {
+    "prefix": "switch",
+    "body": [
+      "switch(${1:variable}) {",
+      "\tcase ${2:value1}:",
+      "\t\t${3:// code}",
+      "\t\tbreak",
+      "\tcase ${4:value2}:",
+      "\t\t${5:// code}",
+      "\t\tbreak",
+      "\tdefault:",
+      "\t\t${6:// default code}",
+      "}"
+    ],
+    "description": "Switch statement"
+  },
+  "Elvis Operator": {
+    "prefix": "elvis",
+    "body": [
+      "${1:value} ?: ${2:defaultValue}"
+    ],
+    "description": "Elvis operator for null-safe default"
+  },
+  "Safe Navigation": {
+    "prefix": "safe",
+    "body": [
+      "${1:object}?.${2:property}"
+    ],
+    "description": "Safe navigation operator"
+  },
+  "Spread Operator": {
+    "prefix": "spread",
+    "body": [
+      "${1:collection}*.${2:property}"
+    ],
+    "description": "Spread operator"
+  },
+  "Range": {
+    "prefix": "range",
+    "body": [
+      "${1:1}..${2:10}"
+    ],
+    "description": "Create a range"
+  },
+  "List Literal": {
+    "prefix": "list",
+    "body": [
+      "[${1:item1}, ${2:item2}, ${3:item3}]"
+    ],
+    "description": "Create a list literal"
+  },
+  "Map Literal": {
+    "prefix": "map",
+    "body": [
+      "[${1:key1}: ${2:value1}, ${3:key2}: ${4:value2}]"
+    ],
+    "description": "Create a map literal"
+  },
+  "Regex Pattern": {
+    "prefix": "regex",
+    "body": [
+      "~/${1:pattern}/"
+    ],
+    "description": "Create a regex pattern"
+  },
+  "String Interpolation": {
+    "prefix": "gstring",
+    "body": [
+      "\"${${1:expression}}\""
+    ],
+    "description": "GString with interpolation"
+  },
+  "Multiline String": {
+    "prefix": "multiline",
+    "body": [
+      "'''${1:line1}",
+      "${2:line2}",
+      "${3:line3}'''"
+    ],
+    "description": "Multiline string literal"
+  }
+}
