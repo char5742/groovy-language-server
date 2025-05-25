@@ -79,6 +79,13 @@
           }
         }
       }
-    }
+    },
+    "grammars": [
+      {
+        "language": "groovy",
+        "scopeName": "source.groovy",
+        "path": "./syntaxes/groovy.tmLanguage.json"
+      }
+    ]
   }
 }
