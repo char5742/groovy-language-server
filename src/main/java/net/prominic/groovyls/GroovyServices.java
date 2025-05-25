@@ -60,6 +60,8 @@ import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
+import org.eclipse.lsp4j.DocumentFormattingParams;
+import org.eclipse.lsp4j.DocumentRangeFormattingParams;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolParams;
 import org.eclipse.lsp4j.Hover;
@@ -76,6 +78,7 @@ import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.TypeDefinitionParams;
 import org.eclipse.lsp4j.VersionedTextDocumentIdentifier;
 import org.eclipse.lsp4j.WorkspaceEdit;
@@ -95,6 +98,7 @@ import net.prominic.groovyls.compiler.control.GroovyLSCompilationUnit;
 import net.prominic.groovyls.config.ICompilationUnitFactory;
 import net.prominic.groovyls.providers.CompletionProvider;
 import net.prominic.groovyls.providers.DefinitionProvider;
+import net.prominic.groovyls.providers.DocumentFormattingProvider;
 import net.prominic.groovyls.providers.DocumentSymbolProvider;
 import net.prominic.groovyls.providers.HoverProvider;
 import net.prominic.groovyls.providers.ReferenceProvider;
@@ -371,6 +375,24 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 
 		RenameProvider provider = new RenameProvider(astVisitor, fileContentsTracker);
 		return provider.provideRename(params);
+	}
+
+	@Override
+	public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
+		URI uri = URI.create(params.getTextDocument().getUri());
+		recompileIfContextChanged(uri);
+
+		DocumentFormattingProvider provider = new DocumentFormattingProvider(fileContentsTracker);
+		return provider.provideFormatting(params.getTextDocument(), params.getOptions());
+	}
+
+	@Override
+	public CompletableFuture<List<? extends TextEdit>> rangeFormatting(DocumentRangeFormattingParams params) {
+		URI uri = URI.create(params.getTextDocument().getUri());
+		recompileIfContextChanged(uri);
+
+		DocumentFormattingProvider provider = new DocumentFormattingProvider(fileContentsTracker);
+		return provider.provideRangeFormatting(params.getTextDocument(), params.getRange(), params.getOptions());
 	}
 
 	// --- INTERNAL

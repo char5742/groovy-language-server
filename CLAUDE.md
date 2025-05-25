@@ -5,6 +5,7 @@
 ## リポジトリについて
 
 このリポジトリは[Groovy Language Server](https://github.com/prominic/groovy-language-server)のフォークで、VSCode拡張機能の強化に特化しています。オリジナルのサンプル実装を基に、実用的なVSCode拡張機能として機能を拡張することを目的としています。
+`char5742/groovy-language-server`
 
 ## ビルドコマンド
 
