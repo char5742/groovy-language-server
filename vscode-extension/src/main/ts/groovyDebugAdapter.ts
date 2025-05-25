@@ -37,6 +37,27 @@ export class GroovyDebugConfigurationProvider implements vscode.DebugConfigurati
             return undefined;
         }
 
+        // Handle attach mode
+        if (config.request === 'attach') {
+            // For attach mode, we simply forward to the Java debugger
+            const javaDebugConfig: vscode.DebugConfiguration = {
+                type: 'java',
+                name: 'Attach to Groovy Process',
+                request: 'attach',
+                hostName: config.hostName || 'localhost',
+                port: config.port || 5005,
+                projectName: config.projectName,
+                sourcePaths: config.sourcePaths || []
+            };
+            return javaDebugConfig;
+        }
+
+        // Handle launch mode
+        if (config.request !== 'launch') {
+            vscode.window.showErrorMessage(`Unknown request type: ${config.request}`);
+            return undefined;
+        }
+
         // Find Java executable
         const javaPath = await this.findJavaExecutable();
         if (!javaPath) {
@@ -47,9 +68,9 @@ export class GroovyDebugConfigurationProvider implements vscode.DebugConfigurati
         // Build the command line for launching Groovy
         const args: string[] = [];
         
-        // Enable debug mode with a specific port
+        // Enable debug mode with a specific port, bind to localhost only for security
         const debugPort = await this.findFreePort();
-        args.push(`-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=${debugPort}`);
+        args.push(`-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:${debugPort}`);
         
         // Add VM arguments
         if (config.vmArgs) {
@@ -87,11 +108,16 @@ export class GroovyDebugConfigurationProvider implements vscode.DebugConfigurati
             args.push(...config.args.split(' ').filter((arg: string) => arg));
         }
 
-        // Create a compound launch configuration
-        // First, we'll use a task to start the Groovy process
-        const preLaunchTask = this.createPreLaunchTask(javaPath, args, folder);
+        // Create a task to start the Groovy process
+        const preLaunchTask = this.createPreLaunchTask(javaPath, args, folder, debugPort);
         
-        // Then, we'll attach the Java debugger
+        // Execute the task and wait for the debug port to be ready
+        const taskExecution = await vscode.tasks.executeTask(preLaunchTask);
+        
+        // Wait for the debug port to be ready
+        await this.waitForDebugPort(debugPort);
+        
+        // Create the Java debug configuration
         const javaDebugConfig: vscode.DebugConfiguration = {
             type: 'java',
             name: 'Attach to Groovy Process',
@@ -101,11 +127,9 @@ export class GroovyDebugConfigurationProvider implements vscode.DebugConfigurati
             projectName: config.projectName,
             sourcePaths: config.sourcePaths || []
         };
-
-        // Store the task name for cleanup
-        config.preLaunchTask = preLaunchTask.name;
         
-        // Return the Java debug configuration
+        // We don't need to store the task execution as VSCode will handle it
+        
         return javaDebugConfig;
     }
 
@@ -122,23 +146,35 @@ export class GroovyDebugConfigurationProvider implements vscode.DebugConfigurati
 
     private async buildClasspath(config: vscode.DebugConfiguration): Promise<string[]> {
         const classpath: string[] = [];
+        const fs = await import('fs');
         
         // Add current workspace folders
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (workspaceFolders) {
             for (const folder of workspaceFolders) {
-                // Common locations for compiled classes
-                classpath.push(path.join(folder.uri.fsPath, 'build', 'classes'));
-                classpath.push(path.join(folder.uri.fsPath, 'out'));
-                classpath.push(path.join(folder.uri.fsPath, 'bin'));
-                classpath.push(path.join(folder.uri.fsPath, 'target', 'classes'));
+                // Common locations for compiled classes - only add if they exist
+                const potentialPaths = [
+                    path.join(folder.uri.fsPath, 'build', 'classes'),
+                    path.join(folder.uri.fsPath, 'out'),
+                    path.join(folder.uri.fsPath, 'bin'),
+                    path.join(folder.uri.fsPath, 'target', 'classes')
+                ];
+                
+                for (const p of potentialPaths) {
+                    if (fs.existsSync(p)) {
+                        classpath.push(p);
+                    }
+                }
             }
         }
         
         // Add Groovy runtime from environment
         const groovyHome = process.env.GROOVY_HOME;
         if (groovyHome) {
-            classpath.push(path.join(groovyHome, 'lib', '*'));
+            const groovyLib = path.join(groovyHome, 'lib');
+            if (fs.existsSync(groovyLib)) {
+                classpath.push(path.join(groovyLib, '*'));
+            }
         }
 
         // Add user-specified classpath
@@ -156,27 +192,50 @@ export class GroovyDebugConfigurationProvider implements vscode.DebugConfigurati
         return classpath;
     }
 
-    private async findFreePort(): Promise<number> {
+    private async findFreePort(retries: number = 3): Promise<number> {
         const net = await import('net');
-        return new Promise((resolve, reject) => {
-            const server = net.createServer();
-            server.listen(0, () => {
-                const port = (server.address() as any).port;
-                server.close(() => resolve(port));
-            });
-            server.on('error', reject);
-        });
+        
+        for (let i = 0; i < retries; i++) {
+            try {
+                const port = await new Promise<number>((resolve, reject) => {
+                    const server = net.createServer();
+                    server.listen(0, 'localhost', () => {
+                        const address = server.address();
+                        if (address && typeof address !== 'string') {
+                            const port = address.port;
+                            server.close(() => resolve(port));
+                        } else {
+                            server.close();
+                            reject(new Error('Failed to get port from server address'));
+                        }
+                    });
+                    server.on('error', reject);
+                });
+                return port;
+            } catch (error) {
+                if (i === retries - 1) {
+                    throw new Error(`Failed to find free port after ${retries} attempts: ${error}`);
+                }
+                // Wait a bit before retrying
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+        
+        throw new Error('Failed to find free port');
     }
 
-    private createPreLaunchTask(javaPath: string, args: string[], folder?: vscode.WorkspaceFolder): vscode.Task {
+    private createPreLaunchTask(javaPath: string, args: string[], folder: vscode.WorkspaceFolder | undefined, debugPort: number): vscode.Task {
         const taskName = `Launch Groovy Debug Process`;
         
+        // Use the folder's URI or the first workspace folder
+        const cwd = folder?.uri.fsPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        
         const processExecution = new vscode.ProcessExecution(javaPath, args, {
-            cwd: folder?.uri.fsPath || vscode.workspace.rootPath
+            cwd: cwd
         });
 
         const task = new vscode.Task(
-            { type: 'groovy-debug-launch' },
+            { type: 'groovy-debug-launch', debugPort: debugPort },
             folder || vscode.TaskScope.Workspace,
             taskName,
             'groovy',
@@ -184,9 +243,38 @@ export class GroovyDebugConfigurationProvider implements vscode.DebugConfigurati
         );
 
         task.isBackground = true;
+        // Problem matcher to detect when the debug port is ready
         task.problemMatchers = [];
 
         return task;
+    }
+    
+    private async waitForDebugPort(port: number, timeout: number = 10000): Promise<void> {
+        const net = await import('net');
+        const startTime = Date.now();
+        
+        while (Date.now() - startTime < timeout) {
+            try {
+                await new Promise<void>((resolve, reject) => {
+                    const client = net.createConnection({ port: port, host: 'localhost' }, () => {
+                        client.end();
+                        resolve();
+                    });
+                    client.on('error', reject);
+                    client.setTimeout(1000);
+                    client.on('timeout', () => {
+                        client.destroy();
+                        reject(new Error('Connection timeout'));
+                    });
+                });
+                return; // Port is ready
+            } catch (error) {
+                // Port not ready yet, wait a bit and retry
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+        
+        throw new Error(`Timeout waiting for debug port ${port} to be ready`);
     }
 
     private resolveVariables(value: string): string {
