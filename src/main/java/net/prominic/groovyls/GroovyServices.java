@@ -382,7 +382,7 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 		URI uri = URI.create(params.getTextDocument().getUri());
 		recompileIfContextChanged(uri);
 
-		DocumentFormattingProvider provider = new DocumentFormattingProvider(fileContentsTracker, astVisitor);
+		DocumentFormattingProvider provider = new DocumentFormattingProvider(fileContentsTracker);
 		return provider.provideFormatting(params.getTextDocument(), params.getOptions());
 	}
 
@@ -391,7 +391,7 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 		URI uri = URI.create(params.getTextDocument().getUri());
 		recompileIfContextChanged(uri);
 
-		DocumentFormattingProvider provider = new DocumentFormattingProvider(fileContentsTracker, astVisitor);
+		DocumentFormattingProvider provider = new DocumentFormattingProvider(fileContentsTracker);
 		return provider.provideRangeFormatting(params.getTextDocument(), params.getRange(), params.getOptions());
 	}
 

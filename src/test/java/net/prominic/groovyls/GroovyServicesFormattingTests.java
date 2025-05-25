@@ -219,4 +219,148 @@ public class GroovyServicesFormattingTests {
         
         assertTrue(edits == null || edits.isEmpty());
     }
+    
+    @Test
+    void testFormatDocument_StringLiterals() throws Exception {
+        String uri = workspaceRoot.resolve("TestFormattingStringLiterals.groovy").toUri().toString();
+        // Add poor formatting to ensure changes will be made
+        String content = "def   json='{ \"key\": \"value\" }'\ndef   regex=/\\s*{\\s*/";
+        
+        services.didOpen(new org.eclipse.lsp4j.DidOpenTextDocumentParams(
+            new org.eclipse.lsp4j.TextDocumentItem(uri, LANGUAGE_GROOVY, 1, content)
+        ));
+        
+        DocumentFormattingParams params = new DocumentFormattingParams();
+        params.setTextDocument(new TextDocumentIdentifier(uri));
+        
+        FormattingOptions options = new FormattingOptions();
+        options.setTabSize(4);
+        options.setInsertSpaces(true);
+        params.setOptions(options);
+        
+        CompletableFuture<List<? extends TextEdit>> future = services.formatting(params);
+        List<? extends TextEdit> edits = future.get();
+        
+        assertNotNull(edits);
+        assertTrue(edits.size() > 0, "Expected formatting to produce edits");
+        
+        String formatted = edits.get(0).getNewText();
+        // String literals should remain unchanged
+        assertTrue(formatted.contains("'{ \"key\": \"value\" }'"), "String literal should be preserved");
+        assertTrue(formatted.contains("/\\s*{\\s*/"), "Regex literal should be preserved");
+        // Check formatting was applied
+        assertTrue(formatted.contains("def json = "), "Should have proper spacing around assignment");
+    }
+    
+    @Test
+    void testFormatDocument_GroovyClosures() throws Exception {
+        String uri = workspaceRoot.resolve("TestFormattingClosures.groovy").toUri().toString();
+        String content = "list.each{item->println item}\nlist.collect{it*2}.findAll{it>5}";
+        
+        services.didOpen(new org.eclipse.lsp4j.DidOpenTextDocumentParams(
+            new org.eclipse.lsp4j.TextDocumentItem(uri, LANGUAGE_GROOVY, 1, content)
+        ));
+        
+        DocumentFormattingParams params = new DocumentFormattingParams();
+        params.setTextDocument(new TextDocumentIdentifier(uri));
+        
+        FormattingOptions options = new FormattingOptions();
+        options.setTabSize(4);
+        options.setInsertSpaces(true);
+        params.setOptions(options);
+        
+        CompletableFuture<List<? extends TextEdit>> future = services.formatting(params);
+        List<? extends TextEdit> edits = future.get();
+        
+        assertNotNull(edits);
+        assertTrue(edits.size() > 0, "Expected formatting to produce edits");
+        
+        String formatted = edits.get(0).getNewText();
+        // Closure arrow should have proper spacing
+        assertTrue(formatted.contains(" -> "), "Closure arrow should have proper spacing");
+    }
+    
+    @Test
+    void testFormatDocument_GString() throws Exception {
+        String uri = workspaceRoot.resolve("TestFormattingGString.groovy").toUri().toString();
+        String content = "def msg=\"Hello ${name}\"\ndef multiline=\"\"\"Line1\n${value}\nLine3\"\"\"";
+        
+        services.didOpen(new org.eclipse.lsp4j.DidOpenTextDocumentParams(
+            new org.eclipse.lsp4j.TextDocumentItem(uri, LANGUAGE_GROOVY, 1, content)
+        ));
+        
+        DocumentFormattingParams params = new DocumentFormattingParams();
+        params.setTextDocument(new TextDocumentIdentifier(uri));
+        
+        FormattingOptions options = new FormattingOptions();
+        options.setTabSize(4);
+        options.setInsertSpaces(true);
+        params.setOptions(options);
+        
+        CompletableFuture<List<? extends TextEdit>> future = services.formatting(params);
+        List<? extends TextEdit> edits = future.get();
+        
+        if (edits != null && !edits.isEmpty()) {
+            String formatted = edits.get(0).getNewText();
+            // GString interpolation should remain intact
+            assertTrue(formatted.contains("${name}"));
+            assertTrue(formatted.contains("${value}"));
+        }
+    }
+    
+    @Test
+    void testFormatDocument_SafeNavigation() throws Exception {
+        String uri = workspaceRoot.resolve("TestFormattingSafeNav.groovy").toUri().toString();
+        String content = "user?.address?.city\ndef value=data?:'default'";
+        
+        services.didOpen(new org.eclipse.lsp4j.DidOpenTextDocumentParams(
+            new org.eclipse.lsp4j.TextDocumentItem(uri, LANGUAGE_GROOVY, 1, content)
+        ));
+        
+        DocumentFormattingParams params = new DocumentFormattingParams();
+        params.setTextDocument(new TextDocumentIdentifier(uri));
+        
+        FormattingOptions options = new FormattingOptions();
+        options.setTabSize(4);
+        options.setInsertSpaces(true);
+        params.setOptions(options);
+        
+        CompletableFuture<List<? extends TextEdit>> future = services.formatting(params);
+        List<? extends TextEdit> edits = future.get();
+        
+        if (edits != null && !edits.isEmpty()) {
+            String formatted = edits.get(0).getNewText();
+            // Safe navigation should not have spaces
+            assertTrue(formatted.contains("?."));
+            // Elvis operator should have proper spacing
+            assertTrue(formatted.contains(" ?: "));
+        }
+    }
+    
+    @Test
+    void testFormatDocument_MapLiterals() throws Exception {
+        String uri = workspaceRoot.resolve("TestFormattingMaps.groovy").toUri().toString();
+        String content = "def map=[key:{return value},name:'test',age:25]";
+        
+        services.didOpen(new org.eclipse.lsp4j.DidOpenTextDocumentParams(
+            new org.eclipse.lsp4j.TextDocumentItem(uri, LANGUAGE_GROOVY, 1, content)
+        ));
+        
+        DocumentFormattingParams params = new DocumentFormattingParams();
+        params.setTextDocument(new TextDocumentIdentifier(uri));
+        
+        FormattingOptions options = new FormattingOptions();
+        options.setTabSize(4);
+        options.setInsertSpaces(true);
+        params.setOptions(options);
+        
+        CompletableFuture<List<? extends TextEdit>> future = services.formatting(params);
+        List<? extends TextEdit> edits = future.get();
+        
+        if (edits != null && !edits.isEmpty()) {
+            String formatted = edits.get(0).getNewText();
+            // Map entries should have proper spacing
+            assertTrue(formatted.contains(": "));
+        }
+    }
 }

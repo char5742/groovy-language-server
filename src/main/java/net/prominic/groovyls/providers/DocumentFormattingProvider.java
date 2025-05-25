@@ -19,31 +19,29 @@
 ////////////////////////////////////////////////////////////////////////////////
 package net.prominic.groovyls.providers;
 
-import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import org.codehaus.groovy.ast.ModuleNode;
-import org.codehaus.groovy.control.SourceUnit;
 import org.eclipse.lsp4j.FormattingOptions;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextEdit;
 
-import net.prominic.groovyls.compiler.ast.ASTNodeVisitor;
 import net.prominic.groovyls.util.FileContentsTracker;
 
 public class DocumentFormattingProvider {
     private FileContentsTracker fileContentsTracker;
-    private ASTNodeVisitor astVisitor;
     
-    public DocumentFormattingProvider(FileContentsTracker fileContentsTracker, ASTNodeVisitor astVisitor) {
+    public DocumentFormattingProvider(FileContentsTracker fileContentsTracker) {
         this.fileContentsTracker = fileContentsTracker;
-        this.astVisitor = astVisitor;
     }
     
     public CompletableFuture<List<? extends TextEdit>> provideFormatting(
@@ -159,9 +157,21 @@ public class DocumentFormattingProvider {
     private static class GroovyCodeFormatter {
         private FormattingOptions options;
         private String indentString;
+        private Map<String, String> stringLiteralReplacements;
+        private int replacementCounter;
+        
+        // Patterns for string literals
+        private static final Pattern SINGLE_QUOTE_STRING = Pattern.compile("'([^'\\\\]|\\\\.)*'");
+        private static final Pattern DOUBLE_QUOTE_STRING = Pattern.compile("\"([^\"\\\\]|\\\\.)*\"");
+        private static final Pattern TRIPLE_SINGLE_QUOTE_STRING = Pattern.compile("'''(.*?)'''", Pattern.DOTALL);
+        private static final Pattern TRIPLE_DOUBLE_QUOTE_STRING = Pattern.compile("\"\"\"(.*?)\"\"\"", Pattern.DOTALL);
+        private static final Pattern DOLLAR_SLASH_STRING = Pattern.compile("\\$/(.*?)/\\$", Pattern.DOTALL);
+        private static final Pattern REGEX_PATTERN = Pattern.compile("/(?:[^/\\\\\\n]|\\\\.)*?/");
         
         public GroovyCodeFormatter(FormattingOptions options) {
             this.options = options;
+            this.stringLiteralReplacements = new HashMap<>();
+            this.replacementCounter = 0;
             if (options.isInsertSpaces()) {
                 StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < options.getTabSize(); i++) {
@@ -174,6 +184,13 @@ public class DocumentFormattingProvider {
         }
         
         public String format(String code) {
+            // Clear previous replacements
+            stringLiteralReplacements.clear();
+            replacementCounter = 0;
+            
+            // Extract and replace string literals to protect them
+            code = extractStringLiterals(code);
+            
             // First, split the code into statements/blocks
             code = splitIntoLines(code);
             
@@ -219,7 +236,7 @@ public class DocumentFormattingProvider {
                 }
                 
                 // Increase indent for opening braces
-                if (!inMultilineComment && (formattedLine.endsWith("{") || formattedLine.endsWith("[") || formattedLine.endsWith("("))) {
+                if (!inMultilineComment && (endsWithOpenBrace(formattedLine))) {
                     indentLevel++;
                 }
                 
@@ -229,42 +246,137 @@ public class DocumentFormattingProvider {
                 }
             }
             
-            return formatted.toString();
+            String result = formatted.toString();
+            // Restore string literals
+            return restoreStringLiterals(result);
         }
         
         private String splitIntoLines(String code) {
-            // Split single-line code blocks into multiple lines
-            code = code.replaceAll("\\{", "{\n");
-            code = code.replaceAll("\\}", "\n}");
-            code = code.replaceAll(";", ";\n");
+            // Don't split if already well-formatted (has proper line breaks)
+            if (code.contains("\n")) {
+                return code;
+            }
             
-            // Clean up multiple newlines
-            code = code.replaceAll("\n+", "\n");
-            code = code.trim();
+            // Only split if it's a class, method or control structure
+            if (code.matches(".*\\b(class|interface|trait|def|if|while|for)\\b.*\\{.*\\}.*")) {
+                // Split single-line code blocks into multiple lines
+                // But be careful with closures and one-liners
+                code = code.replaceAll("\\{\\s*\\}", "{ }"); // Keep empty blocks on same line
+                code = code.replaceAll("\\{(?!\\s*\\})", "{\n");
+                code = code.replaceAll("(?<!\\{\\s{0,10})\\}", "\n}");
+                code = code.replaceAll(";(?!\\s*$)", ";\n");
+                
+                // Clean up multiple newlines
+                code = code.replaceAll("\n{3,}", "\n\n");
+            }
             
-            return code;
+            return code.trim();
         }
         
         private String formatLine(String line) {
-            // Add spaces around braces, parentheses, etc.
+            // Special handling for import statements
+            if (line.startsWith("import") || line.startsWith("package")) {
+                return line.trim();
+            }
+            
+            // Handle safe navigation and Elvis operator first
+            line = line.replaceAll("\\s*\\?\\.\\s*", "?.");
+            line = line.replaceAll("\\s*\\?:\\s*", " ?: ");
+            
+            // Handle spread operator
+            line = line.replaceAll("\\s*\\.\\*\\s*", ".*");
+            
+            // First, preserve -> by replacing it with a placeholder
+            String arrowPlaceholder = "__GROOVY_ARROW__";
+            line = line.replaceAll("->", arrowPlaceholder);
+            
+            // Handle various operators - but do compound operators first
+            line = line.replaceAll("\\s*==\\s*", " == ");
+            line = line.replaceAll("\\s*!=\\s*", " != ");
+            line = line.replaceAll("\\s*<=\\s*", " <= ");
+            line = line.replaceAll("\\s*>=\\s*", " >= ");
+            line = line.replaceAll("\\s*\\+=\\s*", " += ");
+            line = line.replaceAll("\\s*-=\\s*", " -= ");
+            line = line.replaceAll("\\s*\\*=\\s*", " *= ");
+            line = line.replaceAll("\\s*/=\\s*", " /= ");
+            
+            // Now handle individual operators
+            line = line.replaceAll("\\s*=\\s*", " = ");
+            line = line.replaceAll("\\s*<\\s*", " < ");
+            line = line.replaceAll("\\s*>\\s*", " > ");
+            
+            // Restore -> with proper spacing
+            line = line.replaceAll(arrowPlaceholder, " -> ");
+            
+            // Add spaces around braces, but handle closure syntax specially
             line = line.replaceAll("\\s*\\{\\s*", " {");
             line = line.replaceAll("\\s*\\}\\s*", "}");
+            
+            // Handle parentheses
             line = line.replaceAll("\\s*\\(\\s*", "(");
             line = line.replaceAll("\\s*\\)\\s*", ")");
-            line = line.replaceAll("\\s*=\\s*", " = ");
             
-            // Handle method definitions
-            line = line.replaceAll("\\)\\{", ") {");
+            // Handle method calls and definitions
+            line = line.replaceAll("\\)\\s*\\{", ") {");
             
-            // Handle class definitions
-            if (line.startsWith("class")) {
-                line = line.replaceAll("class\\s+", "class ");
+            // Handle commas and semicolons
+            line = line.replaceAll("\\s*,\\s*", ", ");
+            line = line.replaceAll("\\s*;\\s*", "; ");
+            
+            // Handle colons in maps and labels
+            line = line.replaceAll("\\s*:\\s*", ": ");
+            
+            // Handle class, interface, trait definitions
+            if (line.matches("^(class|interface|trait|enum)\\s+.*")) {
+                line = line.replaceAll("(class|interface|trait|enum)\\s+", "$1 ");
             }
             
             // Clean up multiple spaces
             line = line.replaceAll("\\s+", " ");
             
             return line.trim();
+        }
+        
+        private String extractStringLiterals(String code) {
+            // Order matters: extract larger patterns first to avoid nested extraction
+            code = extractPattern(code, TRIPLE_DOUBLE_QUOTE_STRING);
+            code = extractPattern(code, TRIPLE_SINGLE_QUOTE_STRING);
+            code = extractPattern(code, DOLLAR_SLASH_STRING);
+            // Extract single quotes before double quotes to preserve nested quotes
+            code = extractPattern(code, SINGLE_QUOTE_STRING);
+            code = extractPattern(code, DOUBLE_QUOTE_STRING);
+            code = extractPattern(code, REGEX_PATTERN);
+            return code;
+        }
+        
+        private String extractPattern(String code, Pattern pattern) {
+            Matcher matcher = pattern.matcher(code);
+            StringBuffer sb = new StringBuffer();
+            
+            while (matcher.find()) {
+                String placeholder = "__STRING_LITERAL_" + (replacementCounter++) + "__";
+                stringLiteralReplacements.put(placeholder, matcher.group());
+                matcher.appendReplacement(sb, placeholder);
+            }
+            matcher.appendTail(sb);
+            
+            return sb.toString();
+        }
+        
+        private String restoreStringLiterals(String code) {
+            for (Map.Entry<String, String> entry : stringLiteralReplacements.entrySet()) {
+                code = code.replace(entry.getKey(), entry.getValue());
+            }
+            return code;
+        }
+        
+        private boolean endsWithOpenBrace(String line) {
+            // Check if line ends with opening brace, but not inside a string literal placeholder
+            String trimmed = line.trim();
+            if (trimmed.contains("__STRING_LITERAL_") && trimmed.endsWith("__")) {
+                return false;
+            }
+            return trimmed.endsWith("{") || trimmed.endsWith("[") || trimmed.endsWith("(");
         }
     }
 }
