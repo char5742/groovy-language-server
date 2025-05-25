@@ -25,6 +25,8 @@ import {
   LanguageClientOptions,
   Executable,
 } from "vscode-languageclient/node";
+import { TaskExplorerProvider } from "./taskExplorer";
+import { registerTaskProviders } from "./taskProvider";
 
 const MISSING_JAVA_ERROR =
   "Could not locate valid JDK. To configure JDK manually, use the groovy.java.home setting.";
@@ -38,6 +40,7 @@ const LABEL_RELOAD_WINDOW = "Reload Window";
 let extensionContext: vscode.ExtensionContext | null = null;
 let languageClient: LanguageClient | null = null;
 let javaPath: string | null = null;
+let taskExplorerProvider: TaskExplorerProvider | null = null;
 
 function onDidChangeConfiguration(event: vscode.ConfigurationChangeEvent) {
   if (event.affectsConfiguration("groovy.java.home")) {
@@ -82,6 +85,64 @@ export function activate(context: vscode.ExtensionContext) {
     "groovy.restartServer",
     restartLanguageServer
   );
+
+  // Register task-related commands
+  taskExplorerProvider = new TaskExplorerProvider();
+  vscode.window.createTreeView('groovyTasksExplorer', {
+    treeDataProvider: taskExplorerProvider,
+    showCollapseAll: true
+  });
+
+  vscode.commands.registerCommand('groovy.gradle.refresh', () => {
+    taskExplorerProvider?.refresh();
+  });
+
+  vscode.commands.registerCommand('groovy.maven.refresh', () => {
+    taskExplorerProvider?.refresh();
+  });
+
+  vscode.commands.registerCommand('groovy.runTask', (key: string, taskName: string) => {
+    taskExplorerProvider?.runTask(key, taskName);
+  });
+
+  vscode.commands.registerCommand('groovy.gradle.runTask', async () => {
+    const tasks = await vscode.tasks.fetchTasks({ type: 'gradle' });
+    if (tasks.length > 0) {
+      const taskNames = tasks.map(t => t.name);
+      const selected = await vscode.window.showQuickPick(taskNames, {
+        placeHolder: 'Select a Gradle task to run'
+      });
+      if (selected) {
+        const task = tasks.find(t => t.name === selected);
+        if (task) {
+          await vscode.tasks.executeTask(task);
+        }
+      }
+    } else {
+      vscode.window.showInformationMessage('No Gradle tasks found');
+    }
+  });
+
+  vscode.commands.registerCommand('groovy.maven.runGoal', async () => {
+    const tasks = await vscode.tasks.fetchTasks({ type: 'maven' });
+    if (tasks.length > 0) {
+      const goalNames = tasks.map(t => t.name);
+      const selected = await vscode.window.showQuickPick(goalNames, {
+        placeHolder: 'Select a Maven goal to run'
+      });
+      if (selected) {
+        const task = tasks.find(t => t.name === selected);
+        if (task) {
+          await vscode.tasks.executeTask(task);
+        }
+      }
+    } else {
+      vscode.window.showInformationMessage('No Maven goals found');
+    }
+  });
+
+  // Register task providers
+  registerTaskProviders(context);
 
   startLanguageServer();
 }
