@@ -28,14 +28,23 @@
   "scripts": {
     "compile": "webpack --mode production",
     "watch": "webpack --mode development --watch",
-    "package": "vsce package"
+    "package": "vsce package",
+    "test-compile": "tsc -p ./",
+    "test": "node ./out/test/runTest.js",
+    "test:headless": "node ./run-headless-test.js",
+    "test:mock": "node ./test-headless.js"
   },
   "devDependencies": {
     "@types/node": "^20.17.50",
     "@types/vscode": "^1.99.0",
+    "@types/mocha": "^10.0.6",
+    "@types/glob": "^8.1.0",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
     "@vscode/vsce": "^3.4.2",
+    "@vscode/test-electron": "^2.3.9",
+    "glob": "^10.3.10",
+    "mocha": "^10.3.0",
     "vscode-jsonrpc": "^8.2.1",
     "vscode-languageclient": "^9.0.1",
     "webpack": "^5.99.9",

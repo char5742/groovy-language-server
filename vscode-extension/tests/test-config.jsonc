@@ -1,0 +1,55 @@
+{
+  // VSCode拡張機能のheadlessテスト設定
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Extension Tests",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--extensionTestsPath=${workspaceFolder}/out/test/suite/index",
+        // Headlessモードで実行
+        "--disable-extensions",
+        "--disable-gpu",
+        "--disable-dev-shm-usage"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ],
+      "preLaunchTask": "npm: test-compile",
+      "env": {
+        "NODE_ENV": "test"
+      }
+    },
+    {
+      "name": "Language Server Tests",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--extensionTestsPath=${workspaceFolder}/out/test/suite/languageServer.test",
+        "--disable-extensions",
+        "--disable-gpu"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/out/**/*.js"
+      ],
+      "preLaunchTask": "npm: test-compile",
+      "env": {
+        "NODE_ENV": "test",
+        "TEST_MODE": "language-server"
+      }
+    }
+  ],
+  // テスト実行設定
+  "testOptions": {
+    "timeout": 60000, // 60秒のタイムアウト
+    "retries": 2,     // 失敗時の再試行回数
+    "bail": false,    // 最初のエラーで停止しない
+    "reporter": "spec", // Mochaレポーター
+    "ui": "tdd"       // Test Driven Development UIを使用
+  }
+}
